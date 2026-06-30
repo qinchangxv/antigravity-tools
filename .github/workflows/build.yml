@@ -88,7 +88,7 @@ jobs:
           zip -r "Antigravity-Tools-macOS-Intel.zip" "Antigravity Tools.app"
           # 增量包（只含 src/ 目录）
           cd "Antigravity Tools.app/Contents/Resources"
-          zip -r "../../../../Antigravity-Tools-macOS-Intel-src.zip" "src"
+          zip -r "../../../Antigravity-Tools-macOS-Intel-src.zip" "src"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -125,7 +125,7 @@ jobs:
           zip -r "Antigravity-Tools-macOS-ARM.zip" "Antigravity Tools.app"
           # 增量包（只含 src/ 目录）
           cd "Antigravity Tools.app/Contents/Resources"
-          zip -r "../../../../Antigravity-Tools-macOS-ARM-src.zip" "src"
+          zip -r "../../../Antigravity-Tools-macOS-ARM-src.zip" "src"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
