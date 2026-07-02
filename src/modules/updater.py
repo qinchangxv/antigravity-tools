@@ -85,7 +85,7 @@ def _fetch_github_release(timeout: int = 15) -> dict | None:
 
     返回格式与旧服务器 version.json 兼容：
     {
-        "version": "1.6.1",
+        "version": "1.5.9",
         "changelog": "...",
         "download_url": "https://github.com/.../Antigravity-Tools-Windows-x64.zip",
         "sha256": "",
@@ -263,6 +263,14 @@ def _apply_src_only_update(zip_path: Path) -> bool:
             logger.error("增量包中未找到 src/ 目录")
             return False
 
+        # [v1.6.1-fix] 把解压后的 src 复制到批处理旁边，避免临时目录被清理
+        # 批处理用这个副本做 robocopy，而不是用解压目录本身
+        stable_copy = Path(tempfile.gettempdir()) / "ag_src_stable"
+        if stable_copy.exists():
+            shutil.rmtree(stable_copy, ignore_errors=True)
+        shutil.copytree(extracted_src, stable_copy)
+        logger.info(f"增量包已复制到稳定目录: {stable_copy}")
+
         if sys.platform == "darwin":
             # macOS: 找到 .app 的 src 目录
             current_exe = Path(sys.executable)
@@ -283,7 +291,7 @@ def _apply_src_only_update(zip_path: Path) -> bool:
             # ditto 覆盖
             subprocess.run(["rm", "-rf", str(src_dir)], capture_output=True, timeout=30)
             result = subprocess.run(
-                ["ditto", str(extracted_src), str(src_dir)],
+                ["ditto", str(stable_copy), str(src_dir)],
                 capture_output=True, timeout=60
             )
             if result.returncode != 0:
@@ -292,6 +300,7 @@ def _apply_src_only_update(zip_path: Path) -> bool:
 
             # 清理临时目录
             shutil.rmtree(tmp_dir, ignore_errors=True)
+            shutil.rmtree(stable_copy, ignore_errors=True)
             logger.info("macOS 增量更新成功")
             return True
 
@@ -304,7 +313,7 @@ def _apply_src_only_update(zip_path: Path) -> bool:
                 return False
 
             bat_path = Path(tempfile.gettempdir()) / "ag_src_updater.bat"
-            # [v1.6.1-fix] 批处理完成后清理临时目录
+            # [v1.6.1-fix] 批处理用 stable_copy 做源，完成后清理两个临时目录
             bat_content = f"""@echo off
 chcp 65001 >nul 2>&1
 timeout /t 2 /nobreak >nul
@@ -316,9 +325,10 @@ if %errorlevel% == 0 goto wait_loop
 timeout /t 1 /nobreak >nul
 
 rd /s /q "{src_dir}"
-robocopy "{extracted_src}" "{src_dir}" /E /IS /IT /NFL /NDL /NJH /NJS /nc /ns /np
+robocopy "{stable_copy}" "{src_dir}" /E /IS /IT /NFL /NDL /NJH /NJS /nc /ns /np
 
 rd /s /q "{tmp_dir}"
+rd /s /q "{stable_copy}"
 
 start "" "{current_exe}"
 
